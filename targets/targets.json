@@ -2710,6 +2710,7 @@
             "STM32H747xx",
             "MBED_TICKLESS",
             "SD_TRANSCEIVER_DISABLED",
+            "QSPI_NO_SHIFTING",
             "EXTRA_IDLE_STACK_REQUIRED"
         ],
         "overrides": { "lpticker_delay_ticks": 4 },
