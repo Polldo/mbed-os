@@ -164,7 +164,11 @@
 #define  VDD_VALUE                    ((uint32_t)3300) /*!< Value of VDD in mv */
 #define  TICK_INT_PRIORITY            ((uint32_t)0x0F) /*!< tick interrupt priority */
 #define  USE_RTOS                     0
+#if !defined (SD_TRANSCEIVER_DISABLED)
 #define  USE_SD_TRANSCEIVER           1U               /*!< use uSD Transceiver */
+#else
+#define  USE_SD_TRANSCEIVER           0U               /*!< not use uSD Transceiver */
+#endif
 #define  USE_SPI_CRC                  1U               /*!< use CRC in SPI */
 
 #define  USE_HAL_ADC_REGISTER_CALLBACKS     0U /* ADC register callback disabled     */
