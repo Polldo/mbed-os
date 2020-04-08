@@ -85,6 +85,20 @@ void SetSysClock(void)
     }
 }
 
+static const uint32_t _keep;
+bool isBootloader() {
+  return ((uint32_t)&_keep < 0x8040000);
+}
+
+bool isBetaBoard() {
+  uint8_t* bootloader_data = (uint8_t*)(0x801F000);
+  if (bootloader_data[0] != 0xA0 || bootloader_data[1] < 14) {
+    return true;
+  } else {
+    return (bootloader_data[10] == 27);
+  }
+}
+
 #if ( ((CLOCK_SOURCE) & USE_PLL_HSE_XTAL) || ((CLOCK_SOURCE) & USE_PLL_HSE_EXTC) )
 /******************************************************************************/
 /*            PLL (clocked by HSE) used as System clock source                */
@@ -107,9 +121,18 @@ uint8_t SetSysClock_PLL_HSE(uint8_t bypass)
     HAL_GPIO_WritePin(GPIOH, GPIO_PIN_1, 1);
 
     /* Supply configuration update enable */
-    HAL_PWREx_ConfigSupply(PWR_SMPS_1V8_SUPPLIES_LDO);
+    if (isBetaBoard()) {
+      HAL_PWREx_ConfigSupply(PWR_SMPS_1V8_SUPPLIES_EXT);
+    } else {
+      HAL_PWREx_ConfigSupply(PWR_SMPS_1V8_SUPPLIES_LDO);
+    }
     /* Configure the main internal regulator output voltage */
-    __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
+
+    if (isBootloader()) {
+      __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+    } else {
+      __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
+    }
 
     while (!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
 
@@ -123,8 +146,21 @@ uint8_t SetSysClock_PLL_HSE(uint8_t bypass)
     RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-    RCC_OscInitStruct.PLL.PLLM = 9;
-    RCC_OscInitStruct.PLL.PLLN = 300;
+    RCC_OscInitStruct.PLL.PLLM = 5;
+    if (isBootloader()) {
+      RCC_OscInitStruct.PLL.PLLN = 40;
+    } else {
+      RCC_OscInitStruct.PLL.PLLN = 160;
+    }
+    if (isBetaBoard()) {
+      RCC_OscInitStruct.PLL.PLLM = 9;
+      if (isBootloader()) {
+        RCC_OscInitStruct.PLL.PLLN = 80;
+      } else {
+        RCC_OscInitStruct.PLL.PLLN = 300;
+      }
+    }
+
     RCC_OscInitStruct.PLL.PLLFRACN = 0;
     RCC_OscInitStruct.PLL.PLLP = 2;
     RCC_OscInitStruct.PLL.PLLR = 2;
@@ -181,8 +217,13 @@ uint8_t SetSysClock_PLL_HSI(void)
     RCC_ClkInitTypeDef RCC_ClkInitStruct;
     RCC_OscInitTypeDef RCC_OscInitStruct;
 
-    /*!< Supply configuration update enable */
-    HAL_PWREx_ConfigSupply(PWR_LDO_SUPPLY);
+    /* Supply configuration update enable */
+    if (isBetaBoard()) {
+      HAL_PWREx_ConfigSupply(PWR_SMPS_1V8_SUPPLIES_EXT);
+    } else {
+      HAL_PWREx_ConfigSupply(PWR_SMPS_1V8_SUPPLIES_LDO);
+    }
+
     /* The voltage scaling allows optimizing the power consumption when the device is
     clocked below the maximum system frequency, to update the voltage scaling value
     regarding system frequency refer to product datasheet.  */
@@ -197,12 +238,12 @@ uint8_t SetSysClock_PLL_HSI(void)
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
     RCC_OscInitStruct.PLL.PLLM = 8;
-    RCC_OscInitStruct.PLL.PLLN = 113;
+    RCC_OscInitStruct.PLL.PLLN = 100;
     RCC_OscInitStruct.PLL.PLLP = 2;
     RCC_OscInitStruct.PLL.PLLQ = 10;
     RCC_OscInitStruct.PLL.PLLR = 2;
     RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-    RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_2;
+    RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
     RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
         return 0; // FAIL
@@ -225,3 +266,17 @@ uint8_t SetSysClock_PLL_HSI(void)
     return 1; // OK
 }
 #endif /* ((CLOCK_SOURCE) & USE_PLL_HSI) */
+
+#if defined (CORE_CM4)
+void HSEM2_IRQHandler(void)
+{
+  HAL_HSEM_IRQHandler();
+}
+#endif
+
+#if defined (CORE_CM7)
+void HSEM1_IRQHandler(void)
+{
+  HAL_HSEM_IRQHandler();
+}
+#endif
