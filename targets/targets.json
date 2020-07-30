@@ -2720,6 +2720,7 @@
             "MBED_TICKLESS",
             "SD_TRANSCEIVER_DISABLED",
             "QSPI_NO_SHIFTING",
+            "MBEDTLS_FS_IO",
             "EXTRA_IDLE_STACK_REQUIRED"
         ],
         "detect_code": ["0813"],
